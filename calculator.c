@@ -3,6 +3,15 @@
 #endif
 
 #include <windows.h>
+#include <stdlib.h>
+#include <wchar.h>
+
+#include <stdio.h>
+
+struct StateInfo
+{
+    wchar_t *quitMessage;
+};
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
@@ -12,13 +21,35 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE deprecatedHINSTANCE,
     //Register the window class
     const wchar_t CLASS_NAME[] = L"Sample Window Class";
 
-    WNDCLASS wc = { };
+    WNDCLASS wc = { 0 };
 
     wc.lpfnWndProc = WindowProc;
     wc.hInstance = hInstance;
     wc.lpszClassName = CLASS_NAME;
 
     RegisterClass(&wc);
+
+    struct StateInfo *pState = malloc(sizeof(struct StateInfo));
+
+    wchar_t quitMessage[] = L"It works!";
+
+    pState->quitMessage = malloc(sizeof(quitMessage));
+
+    wcscpy(pState->quitMessage, quitMessage);
+
+    //sStateInfo.quitMessage = malloc(sizeof(L"Goodbye"));
+
+    wprintf(L"%ls", pState->quitMessage);
+
+    
+
+    if(pState == NULL){
+        free(pState->quitMessage);
+        free(pState);
+        return 14;
+    }
+
+    
 
     // Create the window
 
@@ -37,23 +68,27 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE deprecatedHINSTANCE,
         NULL,                           // Parent window
         NULL,                           // Menu
         hInstance,                      // Instance handle
-        NULL                            // Additional application data
+        pState                          // Additional application data
     );
 
     if(hwnd == NULL){
-        return 0;
+        free(pState->quitMessage);
+        free(pState);
+        return 27;
     }
 
     ShowWindow(hwnd, nCmdShow);
 
     // Run the message loop
 
-    MSG msg = { };
+    MSG msg = { 0 };
     while(GetMessage(&msg, NULL, 0, 0) > 0){
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
 
+    free(pState->quitMessage);
+    free(pState);
     return 0;
 }
 
@@ -66,13 +101,25 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         return 0;
 
     case WM_CLOSE:
-        if (MessageBox(hwnd, L"Really quit?", L"My application", MB_OKCANCEL) == IDOK)
+        struct StateInfo *pStateInfo = (struct StateInfo*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
+
+        if (MessageBox(hwnd, pStateInfo->quitMessage, L"My application", MB_OKCANCEL) == IDOK)
         {
             DestroyWindow(hwnd);
         }
         // Else: User canceled. Do nothing.
+
+        
         return 0;
-    
+
+    case WM_CREATE:
+        CREATESTRUCT *pCreate = (CREATESTRUCT*)(lParam);
+        struct StateInfo *pState = (struct StateInfo*)(pCreate->lpCreateParams);
+
+        SetWindowLongPtr(hwnd, GWLP_USERDATA, (LONG_PTR)pState);
+
+        return 0;
+
     case WM_PAINT:
         {
             PAINTSTRUCT ps;
